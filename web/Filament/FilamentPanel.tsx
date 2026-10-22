@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { createFilament, deleteFilament, updateFilament } from '../apiClient';
 import { usePrinterStatus } from '../Printer/usePrinterStatus';
 import { FilamentDialog } from './FilamentDialog';
+import { formatRemaining } from './formatRemaining';
 import { findMatchingFilament } from './filamentOptions';
 import { useFilaments } from './useFilaments';
 
@@ -224,8 +225,8 @@ function AmsTrayCard({ tray, libraryName, onAdopt }: AmsTrayCardProps) {
 
       <div className="flex items-center gap-2">
         <Progress value={tray.remainPercent ?? 0} className={cn('h-1.5', isLow && '[&>*]:bg-destructive')} />
-        <span className={cn('w-12 shrink-0 text-right text-xs tabular-nums', isLow ? 'text-destructive' : 'text-muted-foreground')}>
-          {tray.remainPercent === null ? '?' : `${tray.remainPercent} %`}
+        <span className={cn('shrink-0 text-right text-xs tabular-nums', isLow ? 'text-destructive' : 'text-muted-foreground')}>
+          {formatRemaining(tray)}
         </span>
       </div>
 

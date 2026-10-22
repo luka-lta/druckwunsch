@@ -111,6 +111,8 @@ export interface AmsTrayResponse {
   subBrand: string | null;
   /** null, wenn der Drucker die Restmenge nicht kennt (z.B. Spule ohne RFID) */
   remainPercent: number | null;
+  /** Geschätzte Restmenge in Gramm aus Prozent und Spulengewicht */
+  remainingGrams: number | null;
   /** Offizieller Bambu-Farbname, falls die Spule im Katalog gefunden wurde */
   catalogName: string | null;
   /** Fünfstellige Bambu-Farbnummer, z.B. "10501" */

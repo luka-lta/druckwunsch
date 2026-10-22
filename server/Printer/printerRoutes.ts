@@ -4,6 +4,7 @@ import type { AppDependencies } from '../AppDependencies';
 import type { AppEnv } from '../AppEnv';
 import { requireSession } from '../Auth/sessionMiddleware';
 import type { FilamentCatalog } from '../Filament/Catalog/BambuCatalog';
+import { toRemainingGrams } from './AmsTray';
 import type { PrinterStatus } from './PrinterStatus';
 
 const DISABLED_RESPONSE: PrinterStatusResponse = {
@@ -54,6 +55,7 @@ function toResponse(status: PrinterStatus, catalog: FilamentCatalog): PrinterSta
         material: tray.material,
         subBrand: tray.subBrand,
         remainPercent: tray.remainPercent,
+        remainingGrams: toRemainingGrams(tray),
         catalogName: catalogEntry?.name ?? null,
         catalogCode: catalogEntry?.code ?? null,
       };

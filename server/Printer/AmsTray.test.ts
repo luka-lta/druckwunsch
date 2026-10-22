@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAmsTrays } from './AmsTray';
+import { parseAmsTrays, toRemainingGrams } from './AmsTray';
 
 function tray(id: string, fields: Record<string, unknown>): Record<string, unknown> {
   return { id, tray_diameter: '1.75', total_len: 330000, ...fields };
@@ -91,5 +91,25 @@ describe('parseAmsTrays', () => {
     const trays = parseAmsTrays({ ams: { ams: [{ id: '0', tray: [tray('0', { tray_type: 'PLA', remain })] }] } });
 
     expect(trays[0]?.remainPercent).toBe(expected);
+  });
+});
+
+describe('toRemainingGrams', () => {
+  it.each([
+    [40, 1000, 400],
+    [100, 1000, 1000],
+    [0, 1000, 0],
+    [33, 500, 165],
+    [7, 250, 18],
+  ])('shouldConvert %d %% of %d g to %d g', (remainPercent, weightGrams, expected) => {
+    expect(toRemainingGrams({ remainPercent, weightGrams })).toBe(expected);
+  });
+
+  it.each([
+    [null, 1000],
+    [40, null],
+    [null, null],
+  ])('shouldReturnNullWithoutPercentOrWeight %j %j', (remainPercent, weightGrams) => {
+    expect(toRemainingGrams({ remainPercent, weightGrams })).toBeNull();
   });
 });

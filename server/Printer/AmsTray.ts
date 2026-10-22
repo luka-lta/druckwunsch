@@ -23,6 +23,15 @@ export interface AmsTray {
   readonly weightGrams: number | null;
 }
 
+/**
+ * Restmenge in Gramm aus Prozent und Spulengewicht. Der Drucker meldet ganze Prozent,
+ * bei 1-kg-Spulen ist das Ergebnis also auf etwa 10 g genau.
+ */
+export function toRemainingGrams(tray: Pick<AmsTray, 'remainPercent' | 'weightGrams'>): number | null {
+  if (tray.remainPercent === null || tray.weightGrams === null) return null;
+  return Math.round((tray.remainPercent / 100) * tray.weightGrams);
+}
+
 /** Liest die Spulen aus den Feldern "ams" und "vt_tray"/"vir_slot" des Drucker-Reports */
 export function parseAmsTrays(raw: RawPrintFields): AmsTray[] {
   const trays = parseAmsUnits(raw.ams);
