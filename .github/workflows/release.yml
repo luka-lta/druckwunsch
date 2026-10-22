@@ -1,0 +1,118 @@
+name: Release
+
+# Bei jedem Push bzw. Merge auf main: Gibt es zur Version aus package.json noch keinen Tag, wird das
+# Docker-Image gebaut und ein GitHub-Release mit Notes aus den Commits seit dem letzten Release erstellt.
+# Neues Release = Version in package.json erhöhen (npm version patch|minor|major) und pushen.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Releases nacheinander abarbeiten, damit sich zwei schnelle Pushes nicht dieselbe Version nehmen
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/luka-lta/druckwunsch/druckwunsch
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Build image & publish release
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Komplette Historie inklusive Tags, um die Commits seit dem letzten Release zu finden
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check version and collect release notes
+        id: next
+        run: npx tsx scripts/release/prepareRelease.ts
+
+      - name: Show release notes
+        if: steps.next.outputs.should_release == 'true'
+        env:
+          NOTES: ${{ steps.next.outputs.notes }}
+        run: echo "$NOTES" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: docker/setup-qemu-action@v4
+        if: steps.next.outputs.should_release == 'true'
+
+      - uses: docker/setup-buildx-action@v4
+        if: steps.next.outputs.should_release == 'true'
+
+      - uses: docker/login-action@v4
+        if: steps.next.outputs.should_release == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image tags
+        id: tags
+        if: steps.next.outputs.should_release == 'true'
+        env:
+          VERSION: ${{ steps.next.outputs.version }}
+        run: |
+          major="${VERSION%%.*}"
+          minor="${VERSION#*.}"; minor="${minor%%.*}"
+          {
+            echo "list<<EOF"
+            echo "${IMAGE}:${VERSION}"
+            echo "${IMAGE}:${major}.${minor}"
+            echo "${IMAGE}:${major}"
+            echo "${IMAGE}:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Erst das Image, dann das Release: schlägt der Build fehl, entsteht kein Release ohne Image
+      - name: Build and push image
+        if: steps.next.outputs.should_release == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.next.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub release
+        if: steps.next.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.next.outputs.tag }}
+          VERSION: ${{ steps.next.outputs.version }}
+          NOTES: ${{ steps.next.outputs.notes }}
+        run: |
+          body=$(cat <<EOF
+          ${NOTES}
+
+          ### 🐳 Docker
+
+          \`\`\`bash
+          docker pull ${IMAGE}:${VERSION}
+          \`\`\`
+          EOF
+          )
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes "$body"

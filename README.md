@@ -150,6 +150,20 @@ npm run typecheck
 npm run printer:probe     # test the printer connection and print the received status
 ```
 
+### Releasing
+
+Releases are driven by the version in `package.json`. On every push to `main`, the
+[release workflow](.github/workflows/release.yml) checks whether a tag for that version exists. If not, it builds
+and pushes the multi-arch Docker image and creates a GitHub release whose notes list the commits since the
+previous release, grouped by [Conventional Commits](https://www.conventionalcommits.org) type.
+
+```bash
+npm version minor --no-git-tag-version   # or patch / major
+git commit -am "chore(release): 0.5.0" && git push
+```
+
+Pushes without a version bump only run the checks. Pull requests run typecheck, tests and build.
+
 **Stack:** [Hono](https://hono.dev) on Node.js · SQLite via the built-in `node:sqlite` (no native modules)
 · [MQTT.js](https://github.com/mqttjs/MQTT.js) · React 19 · Vite · Tailwind CSS 4 · [shadcn/ui](https://ui.shadcn.com)
 
