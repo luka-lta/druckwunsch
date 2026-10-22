@@ -1,0 +1,19 @@
+# Druckwunsch – family print queue for 3D printing requests
+# Usage: put this file next to your .env, then run: docker compose up -d
+services:
+  druckwunsch:
+    image: ghcr.io/luka-lta/druckwunsch/druckwunsch:latest
+    container_name: druckwunsch
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # Access codes and printer credentials
+    env_file: .env
+    environment:
+      PORT: "3000"
+      DATA_DIR: /app/data
+    volumes:
+      - druckwunsch-data:/app/data
+
+volumes:
+  druckwunsch-data:
