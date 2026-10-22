@@ -27,7 +27,7 @@ function request(fields: Partial<PrintRequestResponse>): PrintRequestResponse {
 }
 
 function tray(slot: string, colorHex: string, catalogName: string | null, subBrand = 'PLA Basic'): AmsTrayResponse {
-  return { slot, colorHex, material: 'PLA', subBrand, remainPercent: 50, catalogName, catalogCode: null };
+  return { slot, colorHex, material: 'PLA', subBrand, remainPercent: 50, remainingGrams: 500, catalogName, catalogCode: null };
 }
 
 const OPTIONS = toFilamentOptions(
