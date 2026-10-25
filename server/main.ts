@@ -10,6 +10,9 @@ import { createApp } from './createApp';
 import { BambuCatalog } from './Filament/Catalog/BambuCatalog';
 import { FilamentRepository } from './Filament/Repository/FilamentRepository';
 import { openDatabase } from './Database';
+import { createExpoPushSender } from './Notification/ExpoPushClient';
+import { PushNotifier } from './Notification/PushNotifier';
+import { PushTokenRepository } from './Notification/Repository/PushTokenRepository';
 import { BambuPrinterClient } from './Printer/BambuPrinterClient';
 import { PrintJobRepository } from './Printer/PrintJob/PrintJobRepository';
 import { PrintJobTracker } from './Printer/PrintJob/PrintJobTracker';
@@ -49,6 +52,9 @@ const printer = printerConfig === null
   });
 printer?.start();
 
+const pushTokens = new PushTokenRepository(database);
+const pushNotifier = new PushNotifier(pushTokens, createExpoPushSender(config.expoAccessToken));
+
 const app = createApp({
   config,
   users: new UserRepository(database),
@@ -61,6 +67,11 @@ const app = createApp({
   printer,
   printJobs: printer === null ? null : printJobTracker,
   printJobRepository,
+  pushTokens,
+  notifyNewRequest: (request) => {
+    pushNotifier.notifyNewRequest(request)
+      .catch((error: unknown) => console.error('Failed to send push notification', { requestId: request.id, reason: String(error) }));
+  },
   now: () => new Date(),
 });
 

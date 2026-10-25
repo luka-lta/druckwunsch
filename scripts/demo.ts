@@ -21,6 +21,9 @@ import { PrintJobRepository } from '../server/Printer/PrintJob/PrintJobRepositor
 import type { PrinterStatus } from '../server/Printer/PrinterStatus';
 import { parseMakerWorldLink } from '../server/PrintRequest/MakerWorldLink';
 import { PrintRequestRepository } from '../server/PrintRequest/Repository/PrintRequestRepository';
+import { createExpoPushSender } from '../server/Notification/ExpoPushClient';
+import { PushNotifier } from '../server/Notification/PushNotifier';
+import { PushTokenRepository } from '../server/Notification/Repository/PushTokenRepository';
 
 /** Port des Demo-Servers, getrennt vom normalen Entwicklungsserver */
 const DEMO_PORT = Number(process.env.DEMO_PORT ?? 3200);
@@ -315,6 +318,9 @@ for (const request of printRequests.loadAllPrintRequests()) {
   if (request.status === 'printing') printRequests.setPrintJob(request.id, runningJobId);
 }
 
+const pushTokens = new PushTokenRepository(database);
+const pushNotifier = new PushNotifier(pushTokens, createExpoPushSender(null));
+
 const app = createApp({
   config: {
     port: DEMO_PORT,
@@ -323,6 +329,7 @@ const app = createApp({
     dataDir,
     isCookieSecure: false,
     clientIpHeader: null,
+    expoAccessToken: null,
   },
   users,
   sessions: new SessionRepository(database),
@@ -335,6 +342,12 @@ const app = createApp({
   printer: { getStatus: () => ({ ...DEMO_PRINTER_STATUS, updatedAt: new Date().toISOString() }) },
   printJobs: { getActiveJobId: () => runningJobId },
   printJobRepository: printJobs,
+  pushTokens,
+  // Echte Mitteilungen, damit sich Push mit der App auch im Demo-Betrieb ausprobieren lässt
+  notifyNewRequest: (request) => {
+    pushNotifier.notifyNewRequest(request)
+      .catch((error: unknown) => console.error('Failed to send push notification', { reason: String(error) }));
+  },
   now: () => new Date(),
 });
 

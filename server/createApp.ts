@@ -7,6 +7,7 @@ import type { AppEnv } from './AppEnv';
 import { createAuthRoutes } from './Auth/authRoutes';
 import { createCatalogRoutes } from './Filament/Catalog/catalogRoutes';
 import { createFilamentRoutes } from './Filament/filamentRoutes';
+import { createPushRoutes } from './Notification/pushRoutes';
 import { createPrinterRoutes } from './Printer/printerRoutes';
 import { createPrintRequestRoutes } from './PrintRequest/printRequestRoutes';
 import { createStatisticsRoutes } from './Statistics/statisticsRoutes';
@@ -26,6 +27,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/api', createFilamentRoutes(deps));
   app.route('/api', createCatalogRoutes(deps));
   app.route('/api', createStatisticsRoutes(deps));
+  app.route('/api', createPushRoutes(deps));
   app.all('/api/*', (c) => c.json({ error: 'Nicht gefunden' }, 404));
 
   app.onError((error, c) => {

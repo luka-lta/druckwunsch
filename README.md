@@ -74,6 +74,7 @@ All settings live in `.env`:
 | `PRINTER_HOST` | *empty* | IP address of your Bambu Lab printer |
 | `PRINTER_SERIAL` | *empty* | Printer serial number |
 | `PRINTER_ACCESS_CODE` | *empty* | LAN access code shown on the printer |
+| `EXPO_ACCESS_TOKEN` | *empty* | Only needed for push notifications if the mobile app's Expo project uses enhanced push security |
 
 Without the three `PRINTER_*` values, everything works except the printer and AMS features.
 
@@ -102,6 +103,14 @@ When you click *Druck starten* on a card, the request is linked to the print tha
 or to the next one that starts. When that print finishes, all linked requests become *done*, and the
 filament used (from the drop in AMS remaining percentage × spool weight, about ±10 g) is split between them.
 After a failed print they stay on *printing* and are linked to the next attempt.
+
+## Push notifications for the mobile app
+
+The mobile app registers each device after sign-in
+(`POST /api/push-tokens`). When someone submits a new request, the server sends a push notification to all admin
+devices through the [Expo push service](https://docs.expo.dev/push-notifications/overview/), which forwards it to Apple
+and Google. The server needs outgoing HTTPS access to `exp.host`; no other setup is required on the server side.
+Devices that no longer accept notifications are removed automatically.
 
 ## Running behind a reverse proxy
 
