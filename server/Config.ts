@@ -18,6 +18,8 @@ export interface Config {
    * null: Die Verbindungsadresse zählt. Nur setzen, wenn die App ausschließlich über den Proxy erreichbar ist.
    */
   readonly clientIpHeader: string | null;
+  /** Optionales Zugriffstoken für den Expo-Push-Dienst, falls im Expo-Projekt "Enhanced Security" aktiv ist */
+  readonly expoAccessToken: string | null;
 }
 
 export class ConfigError extends Error {
@@ -47,6 +49,7 @@ export function parseConfig(env: NodeJS.ProcessEnv): Config {
     dataDir: env.DATA_DIR?.trim() || './data',
     isCookieSecure: env.COOKIE_SECURE === 'true',
     clientIpHeader: parseHeaderName(env, 'CLIENT_IP_HEADER'),
+    expoAccessToken: env.EXPO_ACCESS_TOKEN?.trim() || null,
   };
 }
 

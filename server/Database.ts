@@ -54,6 +54,13 @@ CREATE TABLE IF NOT EXISTS filaments (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('admin', 'family')),
+    updated_at TEXT NOT NULL
+);
 `;
 
 /**

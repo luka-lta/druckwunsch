@@ -43,6 +43,8 @@ export function createPrintRequestRoutes(deps: AppDependencies): Hono<AppEnv> {
     );
     const printRequest = deps.printRequests.loadPrintRequest(id);
     if (printRequest === null) return c.json({ error: 'Wunsch konnte nicht gespeichert werden' }, 500);
+    // Gemerkte Modelle sind noch kein Wunsch und interessieren die Admins erst beim Abschicken
+    if (printRequest.status === 'new') deps.notifyNewRequest(printRequest);
     return c.json(toResponse(printRequest, session), 201);
   });
 
@@ -83,6 +85,7 @@ export function createPrintRequestRoutes(deps: AppDependencies): Hono<AppEnv> {
 
     const submitted = deps.printRequests.loadPrintRequest(id);
     if (submitted === null) return c.json({ error: 'Wunsch nicht gefunden' }, 404);
+    deps.notifyNewRequest(submitted);
     return c.json(toResponse(submitted, session));
   });
 

@@ -10,7 +10,8 @@ import { BambuCatalog } from './Filament/Catalog/BambuCatalog';
 import { PrintJobRepository } from './Printer/PrintJob/PrintJobRepository';
 import { FilamentRepository } from './Filament/Repository/FilamentRepository';
 import { openDatabase } from './Database';
-import { PrintRequestRepository } from './PrintRequest/Repository/PrintRequestRepository';
+import { PushTokenRepository } from './Notification/Repository/PushTokenRepository';
+import { PrintRequestRepository, type PrintRequest } from './PrintRequest/Repository/PrintRequestRepository';
 
 const CONFIG: Config = {
   port: 0,
@@ -19,6 +20,7 @@ const CONFIG: Config = {
   dataDir: '',
   isCookieSecure: false,
   clientIpHeader: null,
+  expoAccessToken: null,
 };
 
 const MODEL_URL = 'https://makerworld.com/de/models/123456-handyhalter';
@@ -30,7 +32,8 @@ const SAME_ORIGIN = { 'Sec-Fetch-Site': 'same-origin' };
 
 type App = ReturnType<typeof createApp>;
 
-function createTestApp(config: Config = CONFIG): App {
+/** notifiedRequests sammelt die Wünsche, zu denen eine Push-Mitteilung ausgelöst wurde */
+function createTestApp(config: Config = CONFIG, notifiedRequests: PrintRequest[] = []): App {
   const database = openDatabase(':memory:');
   return createApp({
     config,
@@ -44,6 +47,8 @@ function createTestApp(config: Config = CONFIG): App {
     printer: null,
     printJobs: null,
     printJobRepository: new PrintJobRepository(database),
+    pushTokens: new PushTokenRepository(database),
+    notifyNewRequest: (request) => notifiedRequests.push(request),
     now: () => new Date('2026-10-19T10:00:00Z'),
   });
 }
@@ -549,5 +554,75 @@ describe('API', () => {
     const response = await app.request('/api/me', { headers: { Cookie: cookie } });
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe('Push', () => {
+  const DEVICE_TOKEN = 'ExponentPushToken[abcDEF123_-xyz]';
+  let app: App;
+  let notifiedRequests: PrintRequest[];
+
+  beforeEach(() => {
+    notifiedRequests = [];
+    app = createTestApp(CONFIG, notifiedRequests);
+  });
+
+  it('shouldRegisterPushTokenOfSignedInDevice', async () => {
+    const cookie = await login(app, 'Papa', CONFIG.adminCode);
+
+    const response = await app.request('/api/push-tokens', jsonRequest('POST', { token: DEVICE_TOKEN }, cookie));
+
+    expect(response.status).toBe(204);
+  });
+
+  it.each([[''], ['abc'], ['ExponentPushToken[]'], ['ExponentPushToken[a b]'], [42]])('shouldRejectInvalidPushToken %j', async (token) => {
+    const cookie = await login(app, 'Papa', CONFIG.adminCode);
+
+    const response = await app.request('/api/push-tokens', jsonRequest('POST', { token }, cookie));
+
+    expect(response.status).toBe(400);
+  });
+
+  it('shouldRequireSessionToRegisterPushToken', async () => {
+    const response = await app.request('/api/push-tokens', jsonRequest('POST', { token: DEVICE_TOKEN }));
+
+    expect(response.status).toBe(401);
+  });
+
+  it('shouldUnregisterPushToken', async () => {
+    const cookie = await login(app, 'Papa', CONFIG.adminCode);
+    await app.request('/api/push-tokens', jsonRequest('POST', { token: DEVICE_TOKEN }, cookie));
+
+    const response = await app.request('/api/push-tokens', jsonRequest('DELETE', { token: DEVICE_TOKEN }, cookie));
+
+    expect(response.status).toBe(204);
+  });
+
+  it('shouldNotifyAboutNewRequest', async () => {
+    const cookie = await login(app, 'Mama', CONFIG.familyCode);
+
+    const created = await createRequest(app, cookie);
+
+    expect(notifiedRequests.map((request) => request.id)).toEqual([created.id]);
+  });
+
+  it('shouldNotNotifyAboutSavedModel', async () => {
+    const cookie = await login(app, 'Mama', CONFIG.familyCode);
+
+    await app.request('/api/requests', jsonRequest('POST', { url: MODEL_URL, quantity: 1, isSaved: true }, cookie));
+
+    expect(notifiedRequests).toEqual([]);
+  });
+
+  it('shouldNotifyWhenSavedModelIsSubmitted', async () => {
+    const cookie = await login(app, 'Mama', CONFIG.familyCode);
+    const saved = (await (await app.request(
+      '/api/requests',
+      jsonRequest('POST', { url: MODEL_URL, quantity: 1, isSaved: true }, cookie),
+    )).json()) as PrintRequestResponse;
+
+    await app.request(`/api/requests/${saved.id}/submit`, jsonRequest('POST', {}, cookie));
+
+    expect(notifiedRequests.map((request) => request.status)).toEqual(['new']);
   });
 });
